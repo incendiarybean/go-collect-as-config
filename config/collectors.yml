@@ -1,0 +1,40 @@
+collectors:
+    - name: PCGamer
+      url: https://www.pcgamer.com/uk/news/
+      container:
+          type: attribute
+          attr: data-list
+          value: home/latest
+          child:
+              type: class
+              value: listingResult
+      data:
+          title:
+              type: class
+              value: article-name
+          href:
+              type: a
+              attr: href
+          img:
+              type: figure
+              attr: data-original
+          timestamp:
+              type: time
+              attr: datetime
+
+    # - name: ArsTechnica
+    #   url: https://arstechnica.com/gadgets/
+    #   container:
+    #       type: id
+    #       value: main
+    #       child:
+    #           type: class
+    #           value: listingResult
+    #   data:
+    #       title:
+    #           type: h2
+    #       href:
+    #           type: a
+    #       timestamp:
+    #           type: time
+    #           attr: datetime
