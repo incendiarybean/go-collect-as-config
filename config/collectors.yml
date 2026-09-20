@@ -2,7 +2,6 @@ collectors:
     - name: PCGamer
       url: https://www.pcgamer.com/uk/news/
       container:
-          type: attribute
           attr: data-list
           value: home/latest
           child:
@@ -10,7 +9,7 @@ collectors:
               value: listingResult
       data:
           title:
-              type: class
+              attr: class
               value: article-name
           href:
               type: a
@@ -25,11 +24,10 @@ collectors:
     # - name: ArsTechnica
     #   url: https://arstechnica.com/gadgets/
     #   container:
-    #       type: id
+    #       attr: id
     #       value: main
     #       child:
-    #           type: class
-    #           value: listingResult
+    #           type: article
     #   data:
     #       title:
     #           type: h2

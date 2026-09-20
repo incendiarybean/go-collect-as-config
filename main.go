@@ -73,6 +73,12 @@ func getNodes(node *html.Node, child *ChildNode, callback Callback) {
 				value = attr.Val
 				foundEntry = true
 			}
+
+			// if child.Attr != "" {
+			// 	value = attr.Val
+			// 	foundEntry = true
+			// }
+			// slog.Info(fmt.Sprintf("article: %s", article))
 		}
 
 		if attr.Key == child.Type && foundEntry == false {
@@ -103,7 +109,7 @@ func getNodes(node *html.Node, child *ChildNode, callback Callback) {
 	}
 }
 
-func getArticleData(articles []Article, rawArticle iter.Seq[*html.Node], config CollectorData) {
+func getArticleData(articles []Article, rawArticle iter.Seq[*html.Node], config CollectorData) []Article {
 	var article Article
 	for node := range rawArticle {
 		if config.Title != nil {
@@ -139,7 +145,7 @@ func getArticleData(articles []Article, rawArticle iter.Seq[*html.Node], config 
 		slog.Info(fmt.Sprintf("article: %s", article))
 	}
 
-	articles = append(articles, article)
+	return append(articles, article)
 }
 
 func collector(config Collector) {
@@ -185,8 +191,9 @@ func collector(config Collector) {
 
 		// slog.Info(fmt.Sprintf("article: %v", i))
 
-		getArticleData(articles, node, config.Data)
+		articles = getArticleData(articles, node, config.Data)
 	}
+	slog.Info(fmt.Sprintf("collected %v articles...", len(articles)))
 
 }
 
