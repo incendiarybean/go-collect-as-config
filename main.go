@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"iter"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
@@ -49,12 +48,12 @@ type ChildNode struct {
 }
 
 type Article struct {
-	Id        string
-	Outlet    string
-	Title     string
-	Img       string
-	Href      string
-	Timestamp string
+	Hash      string `json:"hash"`
+	Outlet    string `json:"outlet"`
+	Title     string `json:"title"`
+	Img       string `json:"img,omitempty"`
+	Href      string `json:"href,omitempty"`
+	Timestamp string `json:"timestamp,omitempty"`
 }
 
 var UserAgents = []string{"Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "AppleWebKit/537.36 (KHTML, like Gecko)", "Chrome/153.0.0.0", "Safari/537.36", "Edg/153.0.0.0"}
@@ -133,13 +132,13 @@ func getNodes(node *html.Node, child *ChildNode, callback Callback) {
 	}
 }
 
-func getArticleData(rawArticle iter.Seq[*html.Node], config CollectorData, outlet string) Article {
+func getArticleData(rawArticle *html.Node, config CollectorData, outlet string) Article {
 	var article Article
 
 	article.Outlet = outlet
 
 	// For each available article found in the previous functions, render a new article
-	for node := range rawArticle {
+	for node := range rawArticle.Descendants() {
 
 		// If the configuration has a Title search
 		if config.Title != nil {
@@ -188,24 +187,24 @@ func getArticleData(rawArticle iter.Seq[*html.Node], config CollectorData, outle
 	}
 
 	// Generate the ID associated with the article's content
-	article.Id = hash(fmt.Sprintf("%s", article))
+	article.Hash = hash(fmt.Sprintf("%s", article))
 
 	return article
 }
 
 // A function to generate a sha1 hash, for monitoring duplications within the data store
-func hash(s string) string {
+func hash(str string) string {
 	hasher := sha1.New()
-	hasher.Write([]byte(s))
-	sha := base64.URLEncoding.EncodeToString(hasher.Sum(nil))
-	return sha
+	hasher.Write([]byte(str))
+	return base64.URLEncoding.EncodeToString(hasher.Sum(nil))
 }
 
 // A function to make a request to the configured location and obtain fresh HTML content
-func collector(channel chan Article, config Collector, db *sql.DB) {
+func collector(channel chan Article, config Collector) {
 	request, err := http.NewRequest("GET", config.Url, nil)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Error creating request: %s", err.Error()))
+		return
 	}
 
 	// Set a user-agent as systems have began blocking automated requests
@@ -215,6 +214,7 @@ func collector(channel chan Article, config Collector, db *sql.DB) {
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Error making request: %s", err.Error()))
+		return
 	}
 	slog.Debug(fmt.Sprintf("%s - Response Status: %v", config.Name, response.StatusCode))
 	defer response.Body.Close()
@@ -223,13 +223,14 @@ func collector(channel chan Article, config Collector, db *sql.DB) {
 	doc, err := html.Parse(response.Body)
 	if err != nil {
 		slog.Error(fmt.Sprintf("Error: %s", err.Error()))
+		return
 	}
 
 	// Use the YAML filters to get the articles
-	var rawArticles []iter.Seq[*html.Node]
+	var rawArticles []*html.Node
 	for node := range doc.Descendants() {
 		getNodes(node, config.Container, func(node *html.Node, value string) {
-			rawArticles = append(rawArticles, node.Descendants())
+			rawArticles = append(rawArticles, node)
 		})
 	}
 
@@ -251,20 +252,20 @@ func collector(channel chan Article, config Collector, db *sql.DB) {
 func RunCollectors(channel chan Article, collectorConfig CollectorConfig, db *sql.DB) {
 	for _, config := range collectorConfig.Collectors {
 		slog.Info(fmt.Sprintf("Handling configuration for: %s", config.Name))
-		go collector(channel, config, db)
+		go collector(channel, config)
 	}
 }
 
 // A function to monitor for new articles via channel messages
 func HandleCollectorMessages(channel chan Article, db *sql.DB) {
-	statement, err := db.Prepare("INSERT INTO articles (id, title, href, img, timestamp, outlet) VALUES (?, ?, ?, ?, ?, ?)")
+	statement, err := db.Prepare("INSERT INTO articles (Hash, title, href, img, timestamp, outlet) VALUES (?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		slog.Error(fmt.Sprintf("Error generating prepared statement: %s", err))
 		return
 	}
 
 	for article := range channel {
-		statement.Query(article.Id, article.Title, article.Href, article.Img, article.Timestamp, article.Outlet)
+		statement.Query(article.Hash, article.Title, article.Href, article.Img, article.Timestamp, article.Outlet)
 	}
 }
 
@@ -287,7 +288,7 @@ func main() {
 	}
 
 	// Create the SQLite table
-	db.Exec("CREATE TABLE IF NOT EXISTS articles (id TEXT primary key, title TEXT, href TEXT, img TEXT, timestamp TEXT, outlet TEXT)")
+	db.Exec("CREATE TABLE IF NOT EXISTS articles (hash TEXT primary key, title TEXT, href TEXT, img TEXT, timestamp TEXT, outlet TEXT)")
 
 	// Read the local configuration file
 	configDir := os.DirFS("./config")
@@ -322,7 +323,7 @@ func main() {
 		for rows.Next() {
 			var article Article
 
-			if err := rows.Scan(&article.Id, &article.Title, &article.Href, &article.Img, &article.Timestamp, &article.Outlet); err != nil {
+			if err := rows.Scan(&article.Hash, &article.Title, &article.Href, &article.Img, &article.Timestamp, &article.Outlet); err != nil {
 				slog.Error(err.Error())
 				http.Error(response, http.StatusText(502), 502)
 				return
