@@ -30,9 +30,10 @@ type: <type> # the type of element to find, e.g. a, img, section, article
 attr: <attribute> # a filter to obtain a value from the current element by attribute
 value: <value> # a filter to obtain a value from the current element by attrubute value (attribute must be supplied)
 child: <recursive> # for defining deeper searches
+prefix: <prefix string> # used to prefix results from a child filter, e.g. <prefix><img> 
 ```
 
-You can use children recursively to obtain deepor values, or provide a more defined scope for value:
+You can use children recursively to obtain deeper values, or provide a more defined scope for value:
 
 ```yaml
 title:
