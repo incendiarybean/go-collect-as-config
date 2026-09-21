@@ -21,18 +21,101 @@ collectors:
               type: time
               attr: datetime
 
-    # - name: ArsTechnica
-    #   url: https://arstechnica.com/gadgets/
-    #   container:
-    #       attr: id
-    #       value: main
-    #       child:
-    #           type: article
-    #   data:
-    #       title:
-    #           type: h2
-    #       href:
-    #           type: a
-    #       timestamp:
-    #           type: time
-    #           attr: datetime
+    - name: ArsTechnica
+      url: https://arstechnica.com/gadgets/
+      container:
+          type: main
+          child:
+              type: article
+      data:
+          title:
+              type: h2
+              child:
+                  type: a
+          href:
+              type: h2
+              child:
+                  type: a
+                  attr: href
+          img:
+              type: a
+              child:
+                  type: img
+                  attr: src
+          timestamp:
+              type: time
+              attr: datetime
+
+    - name: Rock Paper Shotgun
+      url: https://www.rockpapershotgun.com/latest
+      container:
+          attr: class
+          value: blog
+          child:
+              attr: class
+              value: blog__item
+      data:
+          title:
+              attr: class
+              value: title
+              child:
+                  type: a
+          href:
+              attr: class
+              value: title
+              child:
+                  type: a
+                  attr: href
+          img:
+              type: img
+              attr: data-uri
+              prefix: https://assetsio.gnwcdn.com/
+          timestamp:
+              type: time
+              attr: datetime
+
+    - name: The Register
+      url: https://www.theregister.com/security
+      container:
+          attr: id
+          value: main
+          child:
+              type: article
+      data:
+          title:
+              type: h2
+          href:
+              type: a
+              attr: href
+          img:
+              type: picture
+              child:
+                  type: img
+                  attr: src
+          timestamp:
+              type: time
+              attr: datetime
+
+    - name: BBC News
+      url: https://www.bbc.co.uk/news/england
+      container:
+          attr: role
+          value: list
+          child:
+              attr: type
+              value: article
+      data:
+          title:
+              attr: role
+              value: text
+              child:
+                  type: span
+          href:
+              type: a
+              attr: href
+              prefix: https://www.bbc.co.uk
+          img:
+              type: picture
+              child:
+                  type: img
+                  attr: src

@@ -1,4 +1,5 @@
 ## Common collector config
+
 ```yaml
 child:
     type: <type> # type of element
