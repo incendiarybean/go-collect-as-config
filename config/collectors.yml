@@ -1,6 +1,7 @@
 collectors:
-    - name: PCGamer
+    - name: PC Gamer
       url: https://www.pcgamer.com/uk/news/
+      style: web
       container:
           attr: data-list
           value: home/latest
@@ -23,6 +24,7 @@ collectors:
 
     - name: ArsTechnica
       url: https://arstechnica.com/gadgets/
+      style: web
       container:
           type: main
           child:
@@ -48,6 +50,7 @@ collectors:
 
     - name: Rock Paper Shotgun
       url: https://www.rockpapershotgun.com/latest
+      style: web
       container:
           attr: class
           value: blog
@@ -76,6 +79,7 @@ collectors:
 
     - name: The Register
       url: https://www.theregister.com/security
+      style: web
       container:
           attr: id
           value: main
@@ -98,6 +102,7 @@ collectors:
 
     - name: BBC News
       url: https://www.bbc.co.uk/news/england
+      style: web
       container:
           attr: role
           value: list
@@ -119,3 +124,20 @@ collectors:
               child:
                   type: img
                   attr: src
+
+    - name: NASA APOD
+      url: https://science.nasa.gov/wp-json/wp/v2/apod-basic
+      style: api
+      params:
+          api_key: ENV_NASA_API_KEY
+      data:
+          title:
+              attr: title
+          href:
+              attr: url
+          img:
+              attr: url
+          timestamp:
+              attr: date
+          description:
+              attr: explanation
