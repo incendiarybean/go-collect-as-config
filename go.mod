@@ -1,4 +1,4 @@
-module benweare.co.uk/collector
+module github.com/incendiarybean/benweare.co.uk-collector.go
 
 go 1.27.1
 

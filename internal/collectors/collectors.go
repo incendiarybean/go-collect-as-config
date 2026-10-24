@@ -11,8 +11,8 @@ import (
 	"os"
 	"strings"
 
-	"benweare.co.uk/collector/internal/utils"
 	"github.com/go-yaml/yaml"
+	"github.com/incendiarybean/benweare.co.uk-collector.go/internal/utils"
 	"golang.org/x/net/html"
 )
 
@@ -26,11 +26,17 @@ type Collector struct {
 	workers []Worker
 }
 
+type ApiResult struct {
+	Type  *string
+	Index *int8
+}
+
 type Worker struct {
 	Name      string
 	Style     string
 	Url       string
 	Params    map[string]string
+	Result    *ApiResult
 	Headers   map[string]string
 	Container *ChildNode
 	Data      WorkerData
@@ -150,176 +156,88 @@ func (self *Worker) Create(channel *chan Article) {
 
 	outlet := strings.ReplaceAll(self.Name, " ", "-")
 
-	var articles []Article
-
 	switch self.Style {
 	case "web":
 		{
-			// Parse the docuemnt
-			doc, err := html.Parse(response.Body)
-			if err != nil {
-				slog.Error(fmt.Sprintf("Error: %s", err.Error()))
-				return
-			}
-
-			// Use the YAML filters to get the articles
-			var rawArticles []*html.Node
-			for node := range doc.Descendants() {
-				getNodes(node, self.Container, func(node *html.Node, value string) {
-					rawArticles = append(rawArticles, node)
-				})
-			}
-
-			// Parse the raw html nodes into articles
-			for _, rawArticle := range rawArticles {
-				article := NewArticle(&self.Data, outlet).Write(rawArticle)
-				articles = append(articles, article)
-
-				// Send the article via channel to be stored
-				*channel <- article
-			}
-
-			slog.Info(fmt.Sprintf("Collected %v articles...", len(articles)))
+			self.webHandler(response.Body, outlet, channel)
+			return
 		}
 	case "api":
 		{
-			bodyBytes, _ := io.ReadAll(response.Body)
-			var content map[string]string
-			_ = json.Unmarshal(bodyBytes, &content)
-
-			slog.Info(fmt.Sprintf("%v", content))
-
-			data := self.Data
-			article := NewArticle(&self.Data, outlet)
-			article.SetOutlet(outlet)
-			article.SetTitle(nil, content[data.Title.Attr])
-			article.SetHref(nil, content[data.Href.Attr])
-			article.SetImg(nil, content[data.Img.Attr])
-			article.SetTimestamp(nil, content[data.Timestamp.Attr])
-			article.SetDescription(nil, content[data.Description.Attr])
-
-			slog.Info("Collected external API article...")
-
-			// Send the article via channel to be stored
-			*channel <- article
+			self.apiHandler(response.Body, outlet, channel)
+			return
 		}
 	}
 }
 
-// // A function to make a request to the configured location and obtain fresh HTML content
-// func collector(channel chan Article, config Collector) {
-// 	url := config.Url
-// 	if config.Params != nil {
-// 		url += "?"
-// 		for key, value := range config.Params {
-// 			if strings.Contains(value, "ENV_") {
-// 				envValue := strings.Split(value, "ENV_")[1]
-// 				value = os.Getenv(envValue)
-// 				url += fmt.Sprintf("%s=%s", key, value)
-// 			}
-// 		}
-// 	}
+func (self *Worker) webHandler(body io.ReadCloser, outlet string, channel *chan Article) {
+	var articles []Article
 
-// 	request, err := http.NewRequest("GET", url, nil)
-// 	if err != nil {
-// 		slog.Error(fmt.Sprintf("Error creating request: %s", err.Error()))
-// 		return
-// 	}
+	// Parse the docuemnt
+	doc, err := html.Parse(body)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Error: %s", err.Error()))
+		return
+	}
 
-// 	if config.Headers != nil {
-// 		for _, headerPair := range config.Headers {
-// 			slog.Info(headerPair)
-// 		}
-// 	}
+	// Use the YAML filters to get the articles
+	var rawArticles []*html.Node
+	for node := range doc.Descendants() {
+		getNodes(node, self.Container, func(node *html.Node, value string) {
+			rawArticles = append(rawArticles, node)
+		})
+	}
 
-// 	// Set a user-agent as systems have began blocking automated requests
-// 	request.Header.Set("User-Agent", utils.RandomUserAgent())
+	// Parse the raw html nodes into articles
+	for _, rawArticle := range rawArticles {
+		article := NewArticle(&self.Data, outlet).Write(rawArticle)
+		articles = append(articles, article)
 
-// 	slog.Debug(fmt.Sprintf("Making request for: %s", config.Url))
-// 	response, err := http.DefaultClient.Do(request)
-// 	if err != nil {
-// 		slog.Error(fmt.Sprintf("Error making request: %s", err.Error()))
-// 		return
-// 	}
-// 	slog.Debug(fmt.Sprintf("%s - Response Status: %v", config.Name, response.StatusCode))
-// 	defer func() {
-// 		_ = response.Body.Close()
-// 	}()
+		// Send the article via channel to be stored
+		*channel <- article
+	}
 
-// 	outlet := strings.ReplaceAll(config.Name, " ", "-")
+	slog.Info(fmt.Sprintf("Collected %v articles...", len(articles)))
+}
 
-// 	var articles []Article
+func (self *Worker) apiHandler(body io.ReadCloser, outlet string, channel *chan Article) {
+	bodyBytes, _ := io.ReadAll(body)
 
-// 	switch config.Style {
-// 	case "web":
-// 		{
-// 			// Parse the docuemnt
-// 			doc, err := html.Parse(response.Body)
-// 			if err != nil {
-// 				slog.Error(fmt.Sprintf("Error: %s", err.Error()))
-// 				return
-// 			}
+	var content map[string]any
+	if self.Result != nil {
+		if self.Result.Type != nil && *self.Result.Type == "array" {
+			var index = 0
+			if self.Result.Index != nil {
+				index = int(*self.Result.Index)
+			}
 
-// 			// Use the YAML filters to get the articles
-// 			var rawArticles []*html.Node
-// 			for node := range doc.Descendants() {
-// 				getNodes(node, config.Container, func(node *html.Node, value string) {
-// 					rawArticles = append(rawArticles, node)
-// 				})
-// 			}
+			var contents []map[string]any
+			if err := json.Unmarshal(bodyBytes, &contents); err != nil {
+				slog.Error(err.Error())
+				return
+			}
 
-// 			// Parse the raw html nodes into articles
-// 			for _, rawArticle := range rawArticles {
-// 				article := NewArticle(&config.Data, outlet).Write(rawArticle)
-// 				articles = append(articles, article)
+			content = contents[index]
+		} else {
+			if err := json.Unmarshal(bodyBytes, &content); err != nil {
+				slog.Error(err.Error())
+				return
+			}
+		}
+	}
 
-// 				// Send the article via channel to be stored
-// 				channel <- article
-// 			}
+	data := self.Data
+	article := NewArticle(&self.Data, outlet)
+	article.SetOutlet(outlet)
+	article.SetTitle(nil, content[data.Title.Attr].(string))
+	article.SetHref(nil, content[data.Href.Attr].(string))
+	article.SetImg(nil, content[data.Img.Attr].(string))
+	article.SetTimestamp(nil, content[data.Timestamp.Attr].(string))
+	article.SetDescription(nil, content[data.Description.Attr].(string))
+	article.GenerateId()
 
-// 			slog.Info(fmt.Sprintf("Collected %v articles...", len(articles)))
-// 		}
-// 	case "api":
-// 		{
-// 			bodyBytes, _ := io.ReadAll(response.Body)
-// 			var content map[string]string
-// 			_ = json.Unmarshal(bodyBytes, &content)
+	slog.Info("Collected external API article...")
 
-// 			article := NewArticle(&config.Data, outlet)
-// 			article.SetOutlet(outlet)
-// 			article.SetTitle(nil, content[config.Data.Title.Attr])
-// 			article.SetHref(nil, content[config.Data.Href.Attr])
-// 			article.SetImg(nil, content[config.Data.Img.Attr])
-// 			article.SetTimestamp(nil, content[config.Data.Timestamp.Attr])
-// 			article.SetDescription(nil, content[config.Data.Description.Attr])
-
-// 			slog.Info("Collected external API article...")
-
-// 			// Send the article via channel to be stored
-// 			channel <- article
-// 		}
-// 	}
-
-// }
-
-// // A function to concurrently run all collectors
-// func RunCollectors(channel chan Article, collectorConfig CollectorConfig, db *sql.DB) {
-// 	for _, config := range collectorConfig.Collectors {
-// 		slog.Info(fmt.Sprintf("Handling configuration for: %s", config.Name))
-// 		go collector(channel, config)
-// 	}
-// }
-
-// // A function to monitor for new articles via channel messages
-// func HandleCollectorMessages(channel chan Article, db *sql.DB) {
-// 	statement, err := db.Prepare("INSERT INTO articles (id, Hash, title, href, img, timestamp, outlet, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-// 	if err != nil {
-// 		slog.Error(fmt.Sprintf("Error generating prepared statement: %s", err))
-// 		return
-// 	}
-
-// 	for msg := range channel {
-// 		article := msg.Read()
-// 		_, _ = statement.Query(article.Id, article.Hash, article.Title, article.Href, article.Img, article.Timestamp, article.Outlet, article.Description)
-// 	}
-// }
+	// Send the article via channel to be stored
+	*channel <- article
+}

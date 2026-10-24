@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"benweare.co.uk/collector/internal/collectors"
-	"benweare.co.uk/collector/internal/routes"
+	"github.com/incendiarybean/benweare.co.uk-collector.go/internal/collectors"
+	"github.com/incendiarybean/benweare.co.uk-collector.go/internal/routes"
 	"github.com/lmittmann/tint"
 	_ "modernc.org/sqlite"
 )

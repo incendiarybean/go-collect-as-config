@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"benweare.co.uk/collector/internal/collectors"
+	"github.com/incendiarybean/benweare.co.uk-collector.go/internal/collectors"
 )
 
 func DefaultRoutes(db *sql.DB) {
