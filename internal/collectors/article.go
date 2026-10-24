@@ -5,7 +5,7 @@ import (
 	"strings"
 	"uuid"
 
-	"github.com/incendiarybean/benweare.co.uk-collector.go/internal/utils"
+	"github.com/incendiarybean/go-collect-as-config/internal/utils"
 	"golang.org/x/net/html"
 )
 

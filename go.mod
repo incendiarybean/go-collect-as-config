@@ -1,4 +1,4 @@
-module github.com/incendiarybean/benweare.co.uk-collector.go
+module github.com/incendiarybean/go-collect-as-config
 
 go 1.27.1
 

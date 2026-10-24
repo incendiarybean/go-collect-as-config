@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/incendiarybean/benweare.co.uk-collector.go/internal/collectors"
-	"github.com/incendiarybean/benweare.co.uk-collector.go/internal/routes"
+	"github.com/incendiarybean/go-collect-as-config/internal/collectors"
+	"github.com/incendiarybean/go-collect-as-config/internal/routes"
 	"github.com/lmittmann/tint"
 	_ "modernc.org/sqlite"
 )
